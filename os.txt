@@ -1034,3 +1034,341 @@ int main() {
 
     return 0;
 }
+
+
+
+============================= ass 8 ==================================================
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+
+void sort_requests(int request[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (request[j] > request[j + 1]) {
+                int temp = request[j];
+                request[j] = request[j + 1];
+                request[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void sstf(int request[], int n, int headStart) {
+    int total_overhead = 0;
+    int completed_requests = 0;
+    int current_position = headStart;
+    int visited[n];
+    
+    for (int i = 0; i < n; i++)
+        visited[i] = 0;
+
+    printf("SSTF Order of Servicing Requests: ");
+    
+    while (completed_requests < n) {
+        int min_distance = INT_MAX;
+        int closest_index = -1;
+
+        for (int i = 0; i < n; i++) {
+            if (!visited[i]) {
+                int distance = abs(request[i] - current_position);
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    closest_index = i;
+                }
+            }
+        }
+
+        visited[closest_index] = 1;
+        total_overhead += min_distance;
+        current_position = request[closest_index];
+        completed_requests++;
+
+        printf("%d ", request[closest_index]);
+    }
+
+    printf("\nTotal Overhead for SSTF: %d\n", total_overhead);
+}
+
+void scan(int request[], int n, int headStart, int total_disk) {
+    sort_requests(request, n);
+
+    int total_overhead = 0;
+    int current_position = headStart;
+    int direction = 1; 
+
+    printf("SCAN Order of Servicing Requests: ");
+
+    // First, handle requests in the direction of movement
+    if (direction == 1) {
+        // Move towards the end
+        for (int i = 0; i < n; i++) {
+            if (request[i] >= current_position) {
+                total_overhead += abs(request[i] - current_position);
+                current_position = request[i];
+                printf("%d ", request[i]);
+            }
+        }
+        // Then, move to the end of the disk
+        total_overhead += abs(total_disk - 1 - current_position);
+        current_position = total_disk - 1;
+
+        // Reverse direction, handle remaining requests
+        for (int i = n - 1; i >= 0; i--) {
+            if (request[i] < headStart) {
+                total_overhead += abs(request[i] - current_position);
+                current_position = request[i];
+                printf("%d ", request[i]);
+            }
+        }
+    }
+
+    printf("\nTotal Overhead for SCAN: %d\n", total_overhead);
+}
+
+void clook(int request[], int n, int headStart) {
+    sort_requests(request, n);
+
+    int total_overhead = 0;
+    int current_position = headStart;
+
+    printf("C-LOOK Order of Servicing Requests: ");
+
+    // Handle requests in the forward direction
+    for (int i = 0; i < n; i++) {
+        if (request[i] >= current_position) {
+            total_overhead += abs(request[i] - current_position);
+            current_position = request[i];
+            printf("%d ", request[i]);
+        }
+    }
+
+    // Jump back to the beginning without reversing direction
+    if (current_position != request[0]) {
+        total_overhead += abs(current_position - request[0]);
+        current_position = request[0];
+    }
+
+    // Continue handling remaining requests
+    for (int i = 0; i < n; i++) {
+        if (request[i] < headStart) {
+            total_overhead += abs(request[i] - current_position);
+            current_position = request[i];
+            printf("%d ", request[i]);
+        }
+    }
+
+    printf("\nTotal Overhead for C-LOOK: %d\n", total_overhead);
+}
+
+int main() {
+    int total_disk, n, headStart;
+
+    printf("Enter the total disk size: ");
+    scanf("%d", &total_disk);
+
+    printf("Enter the total number of requests: ");
+    scanf("%d", &n);
+
+    int request[n];
+
+    printf("Enter the requests:\n");
+    for (int i = 0; i < n; i++) {
+        scanf("%d", &request[i]);
+    }
+
+    printf("Enter the head start position: ");
+    scanf("%d", &headStart);
+
+    int choice;
+    while (1) {
+        printf("\nMain Menu:\n");
+        printf("1. SSTF\n");
+        printf("2. SCAN\n");
+        printf("3. C-LOOK\n");
+        printf("4. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                sstf(request, n, headStart);
+                break;
+            case 2:
+                scan(request, n, headStart, total_disk);
+                break;
+            case 3:
+                clook(request, n, headStart);
+                break;
+            case 4:
+                exit(0);
+            default:
+                printf("Invalid choice\n");
+        }
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+=======================================ass 8 disk.cpp======================
+cpp madla code
+
+
+#include <bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+#define DISK_SIZE 199
+
+// SSTF Algorithm
+void sstf(vector<int>& requests, int head) {
+    vector<int> visited(requests.size(), false);
+    int total_movement = 0;
+    int count = 0;
+
+    while (count < requests.size()) {
+        int min_index = -1;
+        int min_distance = INT_MAX;
+
+        // Find the closest unvisited request
+        for (int i = 0; i < requests.size(); i++) {
+            if (!visited[i]) {
+                int distance = abs(requests[i] - head);
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_index = i;
+                }
+            }
+        }
+
+        count++;
+        visited[min_index] = true;
+        head = requests[min_index];
+        total_movement += min_distance;
+    }
+
+    cout << "Total head movement for SSTF: " << total_movement << endl;
+}
+
+// SCAN Algorithm
+void scan(vector<int>& requests, int head, string direction) {
+    vector<int> right, left;
+    int total_movement = 0;
+
+    // Separate requests to the left and right of head
+    for (int req : requests) {
+        if (req >= head) {
+            right.push_back(req);
+        } else {
+            left.push_back(req);
+        }
+    }
+    
+        sort(left.begin(), left.end(),greater<int>());
+        sort(right.begin(), right.end());
+    // Process requests based on scan direction
+    if (direction == "right") {
+        // Move to the right first
+        for (int req : right) {
+            total_movement += abs(head - req);
+            head = req;
+        }
+
+        // Move to the end of the disk and back to the start
+        total_movement += abs(head - DISK_SIZE);
+        head = DISK_SIZE;
+
+        for (int req : left) {
+            total_movement += abs(head - req);
+            head = req;
+        }
+        
+    } else {
+        // Move to the left first
+        for (int req : left) {
+            total_movement += abs(head - req);
+            head = req;
+        }
+
+        // Move to the start of the disk and back to the end
+        total_movement += abs(head - 0);
+        head = 0;
+
+        for (int req : right) {
+            total_movement += abs(head - req);
+            head = req;
+        }
+    }
+
+    cout << "Total head movement for SCAN: " << total_movement << endl;
+}
+
+// C-LOOK Algorithm
+void clook(vector<int>& requests, int head) {
+    vector<int> right, left;
+    int total_movement = 0;
+
+    // Separate requests to the left and right of head
+    for (int req : requests) {
+        if (req >= head) {
+            right.push_back(req);
+        } else {
+            left.push_back(req);
+        }
+    }
+
+    // Sort requests in both directions for C-LOOK movement
+    sort(left.begin(), left.end());
+    sort(right.begin(), right.end());
+
+    // Process requests on the right side
+    for (auto req : right) {
+        total_movement += abs(req - head);
+        head = req;
+    }
+
+    // Jump back to the lowest request on the left side if needed
+    total_movement += abs(left[0] - head);
+    head = left[0];
+    if (!left.empty()) {
+        for (int request : left) {
+            total_movement += abs(head - request);
+            head = request;
+        }
+    }
+
+    cout << "Total head movement for C-LOOK: " << total_movement << endl;
+}
+
+int main() {
+    int n;
+    cout << "Enter the number of requests: ";
+    cin >> n;
+
+    vector<int> requests(n);
+    cout << "Enter the requests: ";
+    for (int i = 0; i < n; i++) {
+        cin >> requests[i];
+    }
+
+    int head;
+    cout << "Enter the initial head position: ";
+    cin >> head;
+
+    cout << "\nSSTF Algorithm" << endl;
+    sstf(requests, head);
+
+    cout << "\nSCAN Algorithm (right direction)" << endl;
+    scan(requests, head, "right");
+
+    cout << "\nC-LOOK Algorithm" << endl;
+    clook(requests, head);
+
+    return 0;
+}

@@ -286,6 +286,107 @@ int main() {
 }
 
 ====================================================ass 2B =========================================
+// main program (2b.c)
+
+/*
+Implement the C program in which main program accepts an array. Main program uses the
+FORK system call to create a new process called a child process. Parent process sorts an array and
+passes the sorted array to child process through the command line arguments of EXECVE system
+call. The child process uses EXECVE system call to load new program which display array in reverse
+order
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+// Swap function
+void swap(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// Bubble Sort function
+void bubbleSort(int arr[], int n) {
+    int i, j, temp;
+    for (i = 0; i < n - 1; i++) {
+        for (j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+int main() {
+    int n, i;
+    printf("Enter the number of integers you want to sort: ");
+    scanf("%d", &n);
+    
+    int arr[n];
+    printf("Enter numbers : \n");  
+    for (i = 0; i < n; i++) {
+        scanf("%d", &arr[i]);
+    }
+    
+bubbleSort(arr,n);
+    // Forking a child process
+    pid_t pid = fork();
+    if (pid < 0) {
+        printf("Fork failed.\n");
+        exit(1);
+    } else if (pid == 0) {
+        // Child process
+        // Convert array to string arguments
+        char arr_str[n][10];
+        char* args[n + 2];
+        args[0] = "./process";  // Executable name for child process
+        for (i = 0; i < n; i++) {
+            sprintf(arr_str[i], "%d", arr[i]);
+            args[i + 1] = arr_str[i];
+        }
+        args[n + 1] = NULL;  // Mark the end of arguments
+        
+        execve(args[0], args, NULL);  // Execute the child process
+        perror("execve");  // execve only returns on error
+        exit(1);
+    } else {
+        // Parent process
+        bubbleSort(arr, n);  // Sort the array using bubble sort
+        wait(NULL);  // Wait for child process to complete
+        printf("Parent Process id : %d\n", getpid());
+    }
+    return 0;
+}
+    
+
+
+\\ small program (2b_fork.c)
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char *argv[]) {
+    // Check if we have enough arguments
+    if (argc < 2) {
+        printf("No array elements passed.\n");
+        return 1;
+    }
+
+    printf("Array in reverse order: ");
+    for (int i = argc - 1; i > 0; i--) {
+        printf("%s ", argv[i]);
+    }
+    printf("\n");
+    
+    return 0;
+}
+
 
 
 =====================================================ass 3=============================================
@@ -692,6 +793,138 @@ int main()
 
 
 }
+================================================4 reader writer =====================================================
+
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <time.h>
+
+sem_t rw_mutex; 
+sem_t mutex;    
+int read_count = 0; 
+
+void* reader(void* arg) {
+    int reader_id = *((int*)arg);
+    int iterations = *((int*)(arg + sizeof(int))); 
+    
+    for (int i = 0; i < iterations; i++) {
+        sem_wait(&mutex); 
+        read_count++;
+        if (read_count == 1) {
+            sem_wait(&rw_mutex); 
+        }
+        sem_post(&mutex); 
+
+        // Reading section
+        printf("Reader %d wants to read\n", reader_id);
+        fflush(stdout);
+        sleep(rand() % 3 + 1); 
+        printf("Reader %d is reading\n", reader_id);
+        fflush(stdout);
+        sleep(1); 
+
+        sem_wait(&mutex); 
+        read_count--;
+        if (read_count == 0) {
+            sem_post(&rw_mutex); 
+        }
+        sem_post(&mutex); 
+
+        printf("Reader %d finished reading\n", reader_id);
+        fflush(stdout);
+        sleep(rand() % 3 + 1); 
+    }
+    return NULL;
+}
+
+void* writer(void* arg) {
+    int writer_id = *((int*)arg);
+    int iterations = *((int*)(arg + sizeof(int))); 
+    
+    for (int i = 0; i < iterations; i++) {
+        sem_wait(&rw_mutex); 
+
+        // Writing section
+        printf("Writer %d wants to write\n", writer_id);
+        fflush(stdout);
+        sleep(rand() % 3 + 1); 
+        printf("Writer %d is writing\n", writer_id);
+        fflush(stdout);
+        sleep(1); 
+
+        sem_post(&rw_mutex); 
+        printf("Writer %d finished writing\n", writer_id);
+        fflush(stdout);
+        sleep(rand() % 3 + 1); 
+    }
+    return NULL;
+}
+
+int main() {
+    srand(time(NULL)); 
+    int num_readers, num_writers;
+
+    // Ask the user for the number of readers and writers
+    printf("Enter the number of readers: ");
+    fflush(stdout);
+    scanf("%d", &num_readers);
+    printf("Enter the number of writers: ");
+    fflush(stdout);
+    scanf("%d", &num_writers);
+
+    pthread_t readers[num_readers], writers[num_writers];
+    int reader_ids[num_readers], writer_ids[num_writers];
+    int read_iterations[num_readers], write_iterations[num_writers];
+
+    // Generate random read and write iterations
+    for (int i = 0; i < num_readers; i++) {
+        reader_ids[i] = i + 1;
+        read_iterations[i] = rand() % 5 + 1; // Random number of read operations (1 to 5)
+        printf("Reader %d will perform %d read operations.\n", reader_ids[i], read_iterations[i]);
+    }
+    for (int i = 0; i < num_writers; i++) {
+        writer_ids[i] = i + 1;
+        write_iterations[i] = rand() % 5 + 1; // Random number of write operations (1 to 5)
+        printf("Writer %d will perform %d write operations.\n", writer_ids[i], write_iterations[i]);
+    }
+
+    // Initialize semaphores
+    sem_init(&mutex, 0, 1);
+    sem_init(&rw_mutex, 0, 1);
+
+    // Create reader threads
+    for (int i = 0; i < num_readers; i++) {
+        int* args = malloc(2 * sizeof(int));
+        args[0] = reader_ids[i];
+        args[1] = read_iterations[i];
+        pthread_create(&readers[i], NULL, reader, args);
+    }
+
+    // Create writer threads
+    for (int i = 0; i < num_writers; i++) {
+        int* args = malloc(2 * sizeof(int));
+        args[0] = writer_ids[i];
+        args[1] = write_iterations[i];
+        pthread_create(&writers[i], NULL, writer, args);
+    }
+
+    // Wait for all threads to finish
+    for (int i = 0; i < num_readers; i++) {
+        pthread_join(readers[i], NULL);
+    }
+    for (int i = 0; i < num_writers; i++) {
+        pthread_join(writers[i], NULL);
+    }
+
+    // Destroy the semaphores
+    sem_destroy(&mutex);
+    sem_destroy(&rw_mutex);
+    return 0;
+}
+
 ============================================== 5 banker algorithm====================================================
 
 #include <iostream>
